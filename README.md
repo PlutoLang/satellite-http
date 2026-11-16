@@ -58,7 +58,11 @@ app:get("/delay", |_req, res| -> do
     return "Boom!"
 end)
 
-app:listen(80, || -> print("Listening on http://localhost"))
+app:listen(80, |hs| -> do
+    print("Listening on http://localhost")
+    hs.onaccept = |s| -> print(s:getpeer().." - connected")
+    hs.onclose = |s| -> print(s:getpeer().." - disconnected")
+end)
 ```
 
 ### Echo Server
@@ -77,14 +81,10 @@ local hs = new HttpServer(function(request)
         body = dumpvar(request),
     }
 end)
-hs.onaccept = function(s)
-    print(s:getpeer().." - connected")
-end
-hs.onclose = function(s)
-    print(s:getpeer().." - disconnected")
-end
 hs:bind(sched, 80)
 print("Listening on http://localhost")
+hs.onaccept = |s| -> print(s:getpeer().." - connected")
+hs.onclose = |s| -> print(s:getpeer().." - disconnected")
 sched:run()
 ```
 
