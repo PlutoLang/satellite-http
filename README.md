@@ -2,6 +2,21 @@
 
 A HTTP server library for Pluto, a fork of Lua.
 
+## Table of Contents
+
+- [Installation](#installation)
+- [Examples](#examples)
+  - [Express-like App](#express-like-app)
+  - [Echo Server](#echo-server)
+  - [Chat Server](#chat-server)
+- [API Reference](#api-reference)
+  - [Modules](#modules)
+  - [*HttpServer*](#httpserver)
+  - [*HttpRouter*](#httprouter)
+  - [*HttpRequest*](#httprequest)
+  - [*HttpResponse*](#httpresponse)
+  - [*HttpResponseTable*](#httpresponsetable)
+
 ## Installation
 
 Download this library via your **deps.pluto**:
@@ -86,6 +101,91 @@ print("Listening on http://localhost")
 hs.onaccept = |s| -> print(s:getpeer().." - connected")
 hs.onclose = |s| -> print(s:getpeer().." - disconnected")
 sched:run()
+```
+
+### Chat Server
+
+```lua
+;(require"http".request"//use.agnostic.pm"|>load)()
+
+git "https://github.com/PlutoLang/satellite-http"
+    from "core.pluto" to "lib/satellite/http/core.pluto"
+    from "router.pluto" to "lib/satellite/http/router.pluto"
+
+out "lib"
+    git "https://github.com/PlutoLang/pluto-websocket"
+```
+```lua
+package.path ..= package.config[3].."lib/?.pluto":replace("/", package.config[1])
+
+local { HttpRouter } = require "satellite.http.router"
+local { wsIsUpgradeRequest } = require "websocket"
+
+local app = new HttpRouter()
+
+app:get("/", |_req, res| -> do
+    res:html[[
+        <style>
+            body {
+                font-family: sans-serif;
+                max-width: 1000px;
+                margin: 2rem auto;
+            }
+            form {
+                display: flex;
+                gap: 0.5rem;
+                margin-bottom: 1rem;
+            }
+            textarea {
+                width: 100%;
+                height: 400px;
+            }
+        </style>
+        <form onsubmit="sendMessage(event)">
+            <input id="name" type="text" placeholder="Name" style="width: 20%;" required />
+            <input id="text" type="text" placeholder="Message" style="flex: 1;" required />
+            <input type="submit" value="Send" />
+        </form>
+        <textarea readonly></textarea>
+        <script>
+            const ws = new WebSocket("/ws");
+            ws.onmessage = (event) => {
+                document.querySelector("textarea").textContent = event.data + "\n" + document.querySelector("textarea").textContent;
+            };
+            function sendMessage(event) {
+                event.preventDefault();
+                if (ws.readyState == WebSocket.OPEN) {
+                    ws.send(`${document.getElementById("name").value.trim()}: ${document.getElementById("text").value.trim()}`);
+                    document.getElementById("text").value = "";
+                }
+            }
+        </script>
+    ]]
+end)
+
+local chat_clients = setmetatable({}, { __mode = "k" })
+app:get("/ws", |req, _res| -> do
+    if key := wsIsUpgradeRequest(req.rawdata) then
+        req.socket:wsUpgrade(key)
+        chat_clients[req.socket] = true
+        pcall(function()
+            while data := req.socket:wsRecv() do
+                for s in chat_clients do
+                    s:wsSend(data)
+                end
+            end
+        end)
+        chat_clients[req.socket] = nil
+    else
+        return { status = 400 }
+    end
+end)
+
+app:listen(80, |hs| -> do
+    print("Listening on http://localhost")
+    hs.onaccept = |s| -> print(s:getpeer().." - connected")
+    hs.onclose = |s| -> print(s:getpeer().." - disconnected")
+end)
 ```
 
 ## API Reference
