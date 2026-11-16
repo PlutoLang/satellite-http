@@ -31,6 +31,7 @@ app:get("/", |_req, res| -> do
         <ul>
             <li><a href="/echo">echoes</a></li>
             <li><a href="/scream">screaming</a></li>
+            <li><a href="/delay">waiting</a></li>
         </ul>
     ]]
 end)
@@ -41,7 +42,20 @@ end)
 
 app:get("/scream", |_req, res| -> do
     res:setHeader("Content-Encoding", "gzip")
-    return string.fromhex("1F8B08005287FA6A0200ECC181000000008020D6FD2516A90200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000E0F6E040000000004090BFF5002B54000000000000000013EEFB35F32C0F0100")
+    res:text(string.fromhex("1F8B08005287FA6A0200ECC181000000008020D6FD2516A90200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000E0F6E040000000004090BFF5002B54000000000000000013EEFB35F32C0F0100"))
+end)
+
+app:get("/delay", |_req, res| -> do
+    res:status("200 :)")
+    res:setHeader("Content-Type", "text/plain; charset=utf-8")
+    res:setHeader("X-Content-Type-Options", "nosniff")
+    res:send("3...\r\n")
+    coroutine.sleep(1000)
+    res:send("2...\r\n")
+    coroutine.sleep(1000)
+    res:send("1...\r\n")
+    coroutine.sleep(1000)
+    return "Boom!"
 end)
 
 app:listen(80, || -> print("Listening on http://localhost"))
