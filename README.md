@@ -31,5 +31,6 @@ hs.onclose = function(s)
     print(s:getpeer().." - disconnected")
 end
 hs:bind(sched, 80)
+print("Listening on http://localhost")
 sched:run()
 ```
