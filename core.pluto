@@ -117,23 +117,36 @@ export class HttpServer
 			request.socket = s
 			request.rawdata = data
 			local response = new HttpResponse(s)
-			local pod = self.onrequest(request, response)
-			if pod then
-				if pod.status then
-					response:status(pod.status)
-				end
-				if pod.headers then
-					for k, v in pod.headers do
-						response:setHeader(k, v)
+			xpcall(function()
+				local pod = self.onrequest(request, response)
+				if pod then
+					if pod.status then
+						response:status(pod.status)
+					end
+					if pod.headers then
+						for k, v in pod.headers do
+							response:setHeader(k, v)
+						end
+					end
+					assert(not response._finished, "response:end() must not be called when returning a response table")
+					response["end"](response, pod.body) -- Workaround for https://github.com/PlutoLang/Pluto/issues/1532
+				else
+					if not response._finished then
+						response["end"](response)
 					end
 				end
-				assert(not response._finished, "response:end() must not be called when returning a response table")
-				response["end"](response, pod.body) -- Workaround for https://github.com/PlutoLang/Pluto/issues/1532
-			else
+			end, function(err)
+				err = debug.traceback(err, 2)
 				if not response._finished then
-					response["end"](response)
+					if not response.headers_sent then
+						response:status("500")
+					end
+					response["end"](response, err)
 				end
-			end
+				if self.onerror then
+					self.onerror(err)
+				end
+			end)
 		end
 		if self.onclose then
 			self.onclose(s)
