@@ -1,6 +1,6 @@
 local socket = require "pluto:socket"
 
-local function mime_parse(str)
+export function mime_parse(str)
 	local headers = {}
 	for str:split("\r\n") as line do
 		local k, v = line:match("(.+)%: (.+)")
@@ -11,7 +11,7 @@ local function mime_parse(str)
 	return headers
 end
 
-local function mime_unparse(headers)
+export function mime_unparse(headers)
 	local str = ""
 	for k, v in headers do
 		str ..= k..": "..v.."\r\n"
@@ -19,7 +19,7 @@ local function mime_unparse(headers)
 	return str
 end
 
-local class HttpResponse
+export class HttpResponse
 	_status = "200 OK"
 	headers_sent = false -- read only
 
