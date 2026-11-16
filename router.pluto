@@ -24,7 +24,7 @@ export class HttpRouter
 			return {
 				status = "405 :(",
 				headers = {
-					["Allow"] = route:keys(),
+					["Allow"] = route:keys():concat(", "),
 				},
 			}
 		end

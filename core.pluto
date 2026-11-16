@@ -14,7 +14,7 @@ end
 export function mime_unparse(headers)
 	local str = ""
 	for k, v in headers do
-		str ..= k..": "..v.."\r\n"
+		str ..= k..": "..tostring(v).."\r\n"
 	end
 	return str
 end
