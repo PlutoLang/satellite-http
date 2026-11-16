@@ -9,11 +9,13 @@ export class HttpRouter
 	function get(path, handler)
 		self._routes[path] ??= {}
 		self._routes[path].GET = handler
+		return self
 	end
 
 	function post(path, handler)
 		self._routes[path] ??= {}
 		self._routes[path].POST = handler
+		return self
 	end
 
 	function handleRequest(request, ...)

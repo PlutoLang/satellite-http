@@ -87,3 +87,55 @@ hs:bind(sched, 80)
 print("Listening on http://localhost")
 sched:run()
 ```
+
+## API Reference
+
+### Modules
+- `satellite.http.core` exports { [*HttpServer*](#httpserver) }
+- `satellite.http.router` exports { [*HttpRouter*](#httprouter) }
+
+### *HttpServer*
+This class has the following members:
+- `__construct(onrequest: function(request: HttpRequest, response: HttpResponse): ?HttpResponseTable|string)` — constructor, sets the *onrequest* field
+- `onrequest: function(request: HttpRequest, response: HttpResponse): ?HttpResponseTable|string` — request callback, can return a response as "plain old data" (string or [*HttpResponseTable*](#httpresponsetable)) or use [the *HttpResponse* API](#httpresponse)
+- `onaccept: ?function(socket)` — called client connection is accepted
+- `onclose: ?function(socket)` — called when a client connection is closed
+- `onerror: ?function(err: string)` — called when `onrequest` throws an error, defaults to *|err| -> print(err)*
+- `bind: function(sched: scheduler, port: int)` — starts listening on the given port, using the given [scheduler](https://pluto-lang.org/docs/Runtime%20Environment/Scheduler)
+- `accept: function(socket)` — serves a client connection, handling requests until the client disconnects (used internally by *bind*)
+
+### *HttpRouter*
+This class has the following members:
+- `get: function(path: string, handler: function(request: HttpRequest, response: HttpResponse): ?HttpResponseTable|string): HttpRouter` — registers a GET request handler for the given path
+- `post: function(path: string, handler: function(request: HttpRequest, response: HttpResponse): ?HttpResponseTable|string): HttpRouter` — registers a POST request handler for the given path
+- `listen: function(port: int, callback: ?function(server: HttpServer))` — creates an [*HttpServer*](#httpserver) that dispatches requests through the router; this call does not return, tho it may error
+- `handleRequest: function(request: HttpRequest, response: HttpResponse): ?HttpResponseTable|string` — dispatches a request to the matching handler and returns its result or returns an appropriate error response (used internally by *listen*)
+
+### *HttpRequest*
+This named type is a table with the following members:
+- `method: string`
+- `path: string`
+- `headers: table<string, string>`
+- `body: ?string`
+- `socket: socket` — the underlying client connection
+- `rawdata: string` — the raw data received for the request, as read from the socket before the body was completed
+
+### *HttpResponse*
+This class has the following members:
+- `headers_sent: bool`
+- `status: function(value: string|int): HttpResponse`
+- `hasHeader: function(name: string): bool`
+- `getHeader: function(name: string): string|nil`
+- `setHeader: function(name: string, value: string): HttpResponse`
+- `setText: function(): HttpResponse` — sets the **"Content-Type"** header to **"text/plain; charset=utf-8"**
+- `setHtml: function(): HttpResponse` — sets the **"Content-Type"** header to **"text/html; charset=utf-8"**
+- `send: function(data: string): HttpResponse` — sends a response chunk
+- `end: function(data: ?string): HttpResponse` — finishing the response, optionally sending the given body data (or final response chunk, if *send* was called before)
+- `text: function(data: string): HttpResponse` — sets the **"Content-Type"** header to **"text/plain; charset=utf-8"** and sends the given data, finishing the response
+- `html: function(data: string): HttpResponse` — sets the **"Content-Type"** header to **"text/html; charset=utf-8"** and sends the given data, finishing the response
+
+### *HttpResponseTable*
+This named type is a table with the following members:
+- `status: ?string|int`
+- `headers: ?table<string, string>`
+- `body: ?string`
