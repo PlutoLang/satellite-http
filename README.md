@@ -47,7 +47,7 @@ end)
 
 app:get("/delay", |_req, res| -> do
     res:status("200 :)")
-    res:setHeader("Content-Type", "text/plain; charset=utf-8")
+    res:setText()
     res:setHeader("X-Content-Type-Options", "nosniff")
     res:send("3...\r\n")
     coroutine.sleep(1000)

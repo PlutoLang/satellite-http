@@ -68,14 +68,24 @@ export class HttpResponse
 		return self
 	end
 
-	function html(data)
+	function setHtml()
 		self:setHeader("Content-Type", "text/html; charset=utf-8")
-		self["end"](self, data)
+		return self
+	end
+
+	function html(data)
+		self:setHtml()
+		return self["end"](self, data)
+	end
+
+	function setText()
+		self:setHeader("Content-Type", "text/plain; charset=utf-8")
+		return self
 	end
 
 	function text(data)
-		self:setHeader("Content-Type", "text/plain; charset=utf-8")
-		self["end"](self, data)
+		self:setText()
+		return self["end"](self, data)
 	end
 end
 function HttpResponse.end(self, data) -- Workaround for https://github.com/PlutoLang/Pluto/issues/1531
@@ -93,6 +103,7 @@ function HttpResponse.end(self, data) -- Workaround for https://github.com/Pluto
 		self.headers_sent = true
 	end
 	self._finished = true
+	return self
 end
 
 export class HttpServer
