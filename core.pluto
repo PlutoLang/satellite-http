@@ -96,6 +96,8 @@ function HttpResponse.end(self, data) -- Workaround for https://github.com/Pluto
 end
 
 export class HttpServer
+	onerror = |err| -> print(err)
+
 	function __construct(public onrequest)
 	end
 
