@@ -1,0 +1,70 @@
+local socket = require "pluto:socket"
+
+local function mime_parse(str)
+	local headers = {}
+	for str:split("\r\n") as line do
+		local k, v = line:match("(.+)%: (.+)")
+		if v then
+			headers[k] = v
+		end
+	end
+	return headers
+end
+
+local function mime_unparse(headers)
+	local str = ""
+	for k, v in headers do
+		str ..= k..": "..v.."\r\n"
+	end
+	return str
+end
+
+export class HttpServer
+	function __construct(public onrequest)
+	end
+
+	function accept(s)
+		if self.onaccept then
+			self.onaccept(s)
+		end
+		while data := s:recv() do
+			local headers_start, method, url = select(2, data:find("([A-Z]+) (.+) HTTP%/%d%.%d\r\n"))
+			if not url then
+				s:send("HTTP/1.1 400 Bad Request\r\n\r\n")
+				break
+			end
+			local headers_end, body_start = data:find("\r\n\r\n")
+			local headers = mime_parse(data:sub(headers_start + 1, headers_end - 1))
+			local body
+			if headers["Content-Length"] then
+				body = data:sub(body_start + 1)
+				local content_length = tonumber(headers["Content-Length"])
+				while #body < content_length do
+					local app = s:recv()
+					if not app then
+						break 2
+					end
+					body ..= app
+				end
+			end
+			local request = $object(method, url, headers, body)
+			request.socket = s
+			request.rawdata = data
+			local response = self.onrequest(request)
+			response.status ??= "200 OK"
+			response.headers ??= {}
+			response.body ??= ""
+			response.headers["Connection"] = "keep-alive"
+			response.headers["Content-Length"] = #response.body
+			response.headers["Server"] ??= "PlutoLang/satellite-http"
+			s:send("HTTP/1.1 "..response.status.."\r\n"..mime_unparse(response.headers).."\r\n"..response.body)
+		end
+		if self.onclose then
+			self.onclose(s)
+		end
+	end
+
+	function bind(sched, port)
+		return socket.bind(sched, port, |s| -> self:accept(s))
+	end
+end
