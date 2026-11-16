@@ -119,6 +119,9 @@ export class HttpServer
 			local response = new HttpResponse(s)
 			xpcall(function()
 				local pod = self.onrequest(request, response)
+				if type(pod) == "string" then
+					pod = { body = pod }
+				end
 				if pod then
 					if pod.status then
 						response:status(pod.status)
