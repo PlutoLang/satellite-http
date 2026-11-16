@@ -1,0 +1,43 @@
+local scheduler = require "pluto:scheduler"
+local { HttpServer } = dofile(io.part(debug.getinfo(1, "S").source:sub(2)).."/core.pluto")
+
+export class HttpRouter
+	function __construct()
+		self._routes = {}
+	end
+
+	function get(path, handler)
+		self._routes[path] ??= {}
+		self._routes[path].GET = handler
+	end
+
+	function post(path, handler)
+		self._routes[path] ??= {}
+		self._routes[path].POST = handler
+	end
+
+	function handleRequest(request, ...)
+		if route := self._routes[request.path] then
+			if handler := route[request.method] then
+				return handler(request, ...)
+			end
+			return {
+				status = "405 :(",
+				headers = {
+					["Allow"] = route:keys(),
+				},
+			}
+		end
+		return { status = "404 :(" }
+	end
+
+	function listen(port, callback)
+		self.server = new HttpServer(|...| -> self:handleRequest(...))
+		self.scheduler = new scheduler()
+		self.server:bind(self.scheduler, port)
+		if callback then
+			callback(self.server)
+		end
+		self.scheduler:run()
+	end
+end
