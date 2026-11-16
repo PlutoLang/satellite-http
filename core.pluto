@@ -19,6 +19,72 @@ local function mime_unparse(headers)
 	return str
 end
 
+local class HttpResponse
+	_status = "200 OK"
+	headers_sent = false -- read only
+
+	function __construct(s)
+		self.socket = s
+		self._headers = {
+			["Connection"] = "keep-alive",
+			["Server"] = "PlutoLang/satellite-http",
+		}
+	end
+
+	function status(value)
+		assert(not self.headers_sent, "headers already sent")
+		self._status = value
+		return self
+	end
+
+	function hasHeader(name)
+		return self._headers[name] ~= nil
+	end
+
+	function getHeader(name)
+		return self._headers[name]
+	end
+
+	function setHeader(name, value)
+		assert(not self.headers_sent, "headers already sent")
+		self._headers[name] = value
+		return self
+	end
+
+	function _sendHeaders()
+		--assert(not self.headers_sent, "headers already sent")
+		self.socket:send("HTTP/1.1 "..self._status.."\r\n"..mime_unparse(self._headers).."\r\n")
+		self.headers_sent = true
+	end
+
+	function send(data)
+		if not self.headers_sent then
+			self._headers["Transfer-Encoding"] = "chunked"
+			self:_sendHeaders()
+		else
+			assert(self._headers["Transfer-Encoding"] == "chunked", "headers already sent and not chunked")
+		end
+		self.socket:send(string.format("%x", #data).."\r\n"..data.."\r\n")
+		return self
+	end
+end
+function HttpResponse.end(self, data) -- Workaround for https://github.com/PlutoLang/Pluto/issues/1531
+	assert(not self._finished, "response already sent")
+	if self.headers_sent and self._headers["Transfer-Encoding"] == "chunked" then
+		if data then
+			self:send(data)
+		end
+		self.socket:send("0\r\n\r\n")
+	else
+		data ??= ""
+		self._headers["Transfer-Encoding"] = nil
+		self._headers["Content-Length"] = #data
+		self.socket:send("HTTP/1.1 "..self._status.."\r\n"..mime_unparse(self._headers).."\r\n"..data)
+		self.headers_sent = true
+	end
+	self._finished = true
+end
+
 export class HttpServer
 	function __construct(public onrequest)
 	end
@@ -50,14 +116,24 @@ export class HttpServer
 			local request = $object(method, url, headers, body)
 			request.socket = s
 			request.rawdata = data
-			local response = self.onrequest(request)
-			response.status ??= "200 OK"
-			response.headers ??= {}
-			response.body ??= ""
-			response.headers["Connection"] = "keep-alive"
-			response.headers["Content-Length"] = #response.body
-			response.headers["Server"] ??= "PlutoLang/satellite-http"
-			s:send("HTTP/1.1 "..response.status.."\r\n"..mime_unparse(response.headers).."\r\n"..response.body)
+			local response = new HttpResponse(s)
+			local pod = self.onrequest(request, response)
+			if pod then
+				if pod.status then
+					response:status(pod.status)
+				end
+				if pod.headers then
+					for k, v in pod.headers do
+						response:setHeader(k, v)
+					end
+				end
+				assert(not response._finished, "response:end() must not be called when returning a response table")
+				response["end"](response, pod.body) -- Workaround for https://github.com/PlutoLang/Pluto/issues/1532
+			else
+				if not response._finished then
+					response["end"](response)
+				end
+			end
 		end
 		if self.onclose then
 			self.onclose(s)
