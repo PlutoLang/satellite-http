@@ -99,8 +99,8 @@ export class HttpServer
 			self.onaccept(s)
 		end
 		while data := s:recv() do
-			local headers_start, method, url = select(2, data:find("([A-Z]+) (.+) HTTP%/%d%.%d\r\n"))
-			if not url then
+			local headers_start, method, path = select(2, data:find("([A-Z]+) (.+) HTTP%/%d%.%d\r\n"))
+			if not path then
 				s:send("HTTP/1.1 400 Bad Request\r\n\r\n")
 				break
 			end
@@ -118,7 +118,7 @@ export class HttpServer
 					body ..= app
 				end
 			end
-			local request = $object(method, url, headers, body)
+			local request = $object(method, path, headers, body)
 			request.socket = s
 			request.rawdata = data
 			local response = new HttpResponse(s)
