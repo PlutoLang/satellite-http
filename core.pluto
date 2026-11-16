@@ -72,6 +72,11 @@ local class HttpResponse
 		self:setHeader("Content-Type", "text/html; charset=utf-8")
 		self["end"](self, data)
 	end
+
+	function text(data)
+		self:setHeader("Content-Type", "text/plain; charset=utf-8")
+		self["end"](self, data)
+	end
 end
 function HttpResponse.end(self, data) -- Workaround for https://github.com/PlutoLang/Pluto/issues/1531
 	assert(not self._finished, "response already sent")
