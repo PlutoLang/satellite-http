@@ -18,17 +18,17 @@ local { HttpServer } = require "satellite.http.core"
 
 local sched = new scheduler()
 local hs = new HttpServer(function(request)
-	print(request.socket:getpeer().." - request")
-	return {
-		status = "200 :)",
-		body = dumpvar(request),
-	}
+    print(request.socket:getpeer().." - request")
+    return {
+        status = "200 :)",
+        body = dumpvar(request),
+    }
 end)
 hs.onaccept = function(s)
-	print(s:getpeer().." - connected")
+    print(s:getpeer().." - connected")
 end
 hs.onclose = function(s)
-	print(s:getpeer().." - disconnected")
+    print(s:getpeer().." - disconnected")
 end
 hs:bind(sched, 80)
 sched:run()
