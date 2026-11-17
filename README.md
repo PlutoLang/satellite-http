@@ -6,8 +6,8 @@ A HTTP server library for Pluto, a fork of Lua.
 
 - [Installation](#installation)
 - [Examples](#examples)
-  - [Express-like App](#express-like-app)
   - [Echo Server](#echo-server)
+  - [Express-like App](#express-like-app)
   - [Chat Server](#chat-server)
 - [API Reference](#api-reference)
   - [Modules](#modules)
@@ -30,6 +30,29 @@ git "https://github.com/PlutoLang/satellite-http"
 ```
 
 ## Examples
+
+### Echo Server
+
+```lua
+package.path ..= package.config[3].."lib/?.pluto":replace("/", package.config[1])
+
+local { scheduler } = require "*"
+local { HttpServer } = require "satellite.http.core"
+
+local sched = new scheduler()
+local hs = new HttpServer(function(request)
+    print(request.socket:getpeer().." - request")
+    return {
+        status = "200 :)",
+        body = dumpvar(request),
+    }
+end)
+hs:bind(sched, 80)
+print("Listening on http://localhost")
+hs.onaccept = |s| -> print(s:getpeer().." - connected")
+hs.onclose = |s| -> print(s:getpeer().." - disconnected")
+sched:run()
+```
 
 ### Express-like App
 
@@ -78,29 +101,6 @@ app:listen(80, |hs| -> do
     hs.onaccept = |s| -> print(s:getpeer().." - connected")
     hs.onclose = |s| -> print(s:getpeer().." - disconnected")
 end)
-```
-
-### Echo Server
-
-```lua
-package.path ..= package.config[3].."lib/?.pluto":replace("/", package.config[1])
-
-local { scheduler } = require "*"
-local { HttpServer } = require "satellite.http.core"
-
-local sched = new scheduler()
-local hs = new HttpServer(function(request)
-    print(request.socket:getpeer().." - request")
-    return {
-        status = "200 :)",
-        body = dumpvar(request),
-    }
-end)
-hs:bind(sched, 80)
-print("Listening on http://localhost")
-hs.onaccept = |s| -> print(s:getpeer().." - connected")
-hs.onclose = |s| -> print(s:getpeer().." - disconnected")
-sched:run()
 ```
 
 ### Chat Server
