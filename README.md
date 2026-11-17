@@ -22,6 +22,7 @@ Download this library via your **deps.pluto**:
 ;(require"http".request"//use.agnostic.pm"|>load)()
 
 git "https://github.com/PlutoLang/satellite-http"
+    version "^0.1"
     from "core.pluto" to "lib/satellite/http/core.pluto"
     from "router.pluto" to "lib/satellite/http/router.pluto"
     from "faketls.pluto" to "lib/satellite/http/faketls.pluto"
