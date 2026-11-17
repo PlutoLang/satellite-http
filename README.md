@@ -22,7 +22,7 @@ Download this library via your **deps.pluto**:
 ;(require"http".request"//use.agnostic.pm"|>load)()
 
 git "https://github.com/PlutoLang/satellite-http"
-    version "^0.1"
+    version "^0.2"
     from "core.pluto" to "lib/satellite/http/core.pluto"
     from "router.pluto" to "lib/satellite/http/router.pluto"
     from "faketls.pluto" to "lib/satellite/http/faketls.pluto"
@@ -61,6 +61,7 @@ sched:run()
 package.path ..= package.config[3].."lib/?.pluto":replace("/", package.config[1])
 
 local { HttpRouter } = require "satellite.http.router"
+local { get_cert_for_localhost } = require "satellite.http.faketls"
 
 local app = new HttpRouter()
 
@@ -97,11 +98,14 @@ app:get("/delay", |_req, res| -> do
     return "Boom!"
 end)
 
-app:listen(80, |hs| -> do
-    print("Listening on http://localhost")
-    hs.onaccept = |s| -> print(s:getpeer().." - connected")
-    hs.onclose = |s| -> print(s:getpeer().." - disconnected")
-end)
+print("Fetching TLS info...")
+local hostname, cert = get_cert_for_localhost()
+app:bind(80)
+app:bind(443, { cert })
+print("Listening on http://localhost & https://"..hostname)
+app.server.onaccept = |s| -> print(s:getpeer().." - connected")
+app.server.onclose = |s| -> print(s:getpeer().." - disconnected")
+app:run()
 ```
 
 ### Chat Server
@@ -204,8 +208,10 @@ This class has the following members:
 This class has the following members:
 - `get: function(path: string, handler: function(request: HttpRequest, response: HttpResponse): ?HttpResponseTable|string): HttpRouter` — registers a GET request handler for the given path
 - `post: function(path: string, handler: function(request: HttpRequest, response: HttpResponse): ?HttpResponseTable|string): HttpRouter` — registers a POST request handler for the given path
-- `listen: function(port: int, callback: ?function(server: HttpServer))` — creates an [*HttpServer*](#httpserver) that dispatches requests through the router; this call does not return, tho it may error
-- `handleRequest: function(request: HttpRequest, response: HttpResponse): ?HttpResponseTable|string` — dispatches a request to the matching handler and returns its result or returns an appropriate error response (used internally by *listen*)
+- `bind: function(port: int, certs: ?{ chain: string, private_key: string }[])`
+- `run: function()` — this call does not return, tho it may error
+- `server: ?HttpServer` — defined after the first call to *bind*
+- `handleRequest: function(request: HttpRequest, response: HttpResponse): ?HttpResponseTable|string` — dispatches a request to the matching handler and returns its result or returns an appropriate error response (used internally by *bind*)
 
 ### *HttpRequest*
 This named type is a table with the following members:

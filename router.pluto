@@ -33,13 +33,16 @@ export class HttpRouter
 		return { status = "404 :(" }
 	end
 
-	function listen(port, callback)
-		self.server = new HttpServer(|...| -> self:handleRequest(...))
-		self.scheduler = new scheduler()
-		self.server:bind(self.scheduler, port)
-		if callback then
-			callback(self.server)
+	function bind(...)
+		if not self.server then
+			-- @pluto_warnings disable-next (shadowing vararg table)
+			self.server = new HttpServer(|...| -> self:handleRequest(...))
+			self._scheduler = new scheduler()
 		end
-		self.scheduler:run()
+		return self.server:bind(self._scheduler, ...)
+	end
+
+	function run()
+		self._scheduler:run()
 	end
 end
