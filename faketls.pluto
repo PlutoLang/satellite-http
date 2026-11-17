@@ -1,0 +1,60 @@
+local http = require "pluto:http"
+local json = require "pluto:json"
+local scheduler = require "pluto:scheduler"
+
+local function get_latest_cert()
+	local { name, domain } = http.request("https://tls.cat/certs/latest.json") |> json.decode
+	io.mkdirs($"certs/{name}")
+	-- Do requests in sequence as we can just reuse the same connection
+	if not io.exists($"certs/{name}/cert.pem") then
+		io.contents($"certs/{name}/cert.pem", http.request($"https://tls.cat/certs/{name}/cert.pem"))
+	end
+	if not io.exists($"certs/{name}/key.pem") then
+		io.contents($"certs/{name}/key.pem", http.request($"https://tls.cat/certs/{name}/key.pem"))
+	end
+	return name, domain
+end
+
+export function get_cert_for_localhost()
+	local sched = new scheduler()
+
+	local latest_cert_name, latest_cert_domain
+	sched:add(function()
+		latest_cert_name, latest_cert_domain = get_latest_cert()
+	end)
+	sched:run()
+
+	sched:add(function()
+		http.closeconnections()
+	end)
+	sched:run()
+
+	return $"127-0-0-1.{latest_cert_domain}", {
+		chain = io.contents($"certs/{latest_cert_name}/cert.pem"),
+		private_key = io.contents($"certs/{latest_cert_name}/key.pem"),
+	}
+end
+
+export function get_cert_for_reflexive_ip()
+	local sched = new scheduler()
+
+	local reflexive_ip
+	local latest_cert_name, latest_cert_domain
+	sched:add(function()
+		reflexive_ip = http.request("https://whatismyip.akamai.com/")
+	end)
+	sched:add(function()
+		latest_cert_name, latest_cert_domain = get_latest_cert()
+	end)
+	sched:run()
+
+	sched:add(function()
+		http.closeconnections()
+	end)
+	sched:run()
+
+	return $"{reflexive_ip:replace(".", "-")}.{latest_cert_domain}", {
+		chain = io.contents($"certs/{latest_cert_name}/cert.pem"),
+		private_key = io.contents($"certs/{latest_cert_name}/key.pem"),
+	}
+end

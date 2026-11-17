@@ -179,7 +179,14 @@ export class HttpServer
 		end
 	end
 
-	function bind(sched, port)
+	function bind(sched, port, certs)
+		if certs then
+			return socket.bind(sched, port, function(s)
+				if s:starttls(certs) then
+					return self:accept(s)
+				end
+			end)
+		end
 		return socket.bind(sched, port, |s| -> self:accept(s))
 	end
 end

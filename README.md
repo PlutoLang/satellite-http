@@ -1,9 +1,7 @@
 # Satellite HTTP
-
 A HTTP server library for Pluto, a fork of Lua.
 
 ## Table of Contents
-
 - [Installation](#installation)
 - [Examples](#examples)
   - [Echo Server](#echo-server)
@@ -16,28 +14,28 @@ A HTTP server library for Pluto, a fork of Lua.
   - [*HttpRequest*](#httprequest)
   - [*HttpResponse*](#httpresponse)
   - [*HttpResponseTable*](#httpresponsetable)
+  - [*FaketlsCertificateProvider*](#faketlscertificateprovider)
 
 ## Installation
-
 Download this library via your **deps.pluto**:
-
 ```lua
 ;(require"http".request"//use.agnostic.pm"|>load)()
 
 git "https://github.com/PlutoLang/satellite-http"
     from "core.pluto" to "lib/satellite/http/core.pluto"
     from "router.pluto" to "lib/satellite/http/router.pluto"
+    from "faketls.pluto" to "lib/satellite/http/faketls.pluto"
 ```
 
 ## Examples
 
 ### Echo Server
-
 ```lua
 package.path ..= package.config[3].."lib/?.pluto":replace("/", package.config[1])
 
 local { scheduler } = require "*"
 local { HttpServer } = require "satellite.http.core"
+local { get_cert_for_localhost } = require "satellite.http.faketls"
 
 local sched = new scheduler()
 local hs = new HttpServer(function(request)
@@ -47,15 +45,17 @@ local hs = new HttpServer(function(request)
         body = dumpvar(request),
     }
 end)
+print("Fetching TLS info...")
+local hostname, cert = get_cert_for_localhost()
 hs:bind(sched, 80)
-print("Listening on http://localhost")
+hs:bind(sched, 443, { cert })
+print("Listening on http://localhost & https://"..hostname)
 hs.onaccept = |s| -> print(s:getpeer().." - connected")
 hs.onclose = |s| -> print(s:getpeer().." - disconnected")
 sched:run()
 ```
 
 ### Express-like App
-
 ```lua
 package.path ..= package.config[3].."lib/?.pluto":replace("/", package.config[1])
 
@@ -104,14 +104,8 @@ end)
 ```
 
 ### Chat Server
-
+This needs the following addition to your **deps.pluto**:
 ```lua
-;(require"http".request"//use.agnostic.pm"|>load)()
-
-git "https://github.com/PlutoLang/satellite-http"
-    from "core.pluto" to "lib/satellite/http/core.pluto"
-    from "router.pluto" to "lib/satellite/http/router.pluto"
-
 out "lib"
     git "https://github.com/PlutoLang/pluto-websocket"
 ```
@@ -193,6 +187,7 @@ end)
 ### Modules
 - `satellite.http.core` exports { [*HttpServer*](#httpserver) }
 - `satellite.http.router` exports { [*HttpRouter*](#httprouter) }
+- `satellite.http.faketls` exports [*FaketlsCertificateProvider*](#faketlscertificateprovider)
 
 ### *HttpServer*
 This class has the following members:
@@ -201,7 +196,7 @@ This class has the following members:
 - `onaccept: ?function(socket)` — called client connection is accepted
 - `onclose: ?function(socket)` — called when a client connection is closed
 - `onerror: ?function(err: string)` — called when `onrequest` throws an error, defaults to *|err| -> print(err)*
-- `bind: function(sched: scheduler, port: int)` — starts listening on the given port, using the given [scheduler](https://pluto-lang.org/docs/Runtime%20Environment/Scheduler)
+- `bind: function(sched: scheduler, port: int, certs: ?{ chain: string, private_key: string }[])` — starts listening on the given port, using the given [scheduler](https://pluto-lang.org/docs/Runtime%20Environment/Scheduler)
 - `accept: function(socket)` — serves a client connection, handling requests until the client disconnects (used internally by *bind*)
 
 ### *HttpRouter*
@@ -239,3 +234,8 @@ This named type is a table with the following members:
 - `status: ?string|int`
 - `headers: ?table<string, string>`
 - `body: ?string`
+
+### *FaketlsCertificateProvider*
+This named type is a table with the following members:
+- `get_cert_for_localhost: function(): (string, { chain: string, private_key: string })` — obtains the latest hostname and certificate for accessing 127.0.0.1 via TLS
+- `get_cert_for_reflexive_ip: function(): (string, { chain: string, private_key: string })` — obtains the machine's reflexive IP and the latest faketls certificate
